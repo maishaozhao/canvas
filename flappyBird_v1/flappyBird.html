@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<script src="js/common/util.js"></script>
+		<script src="js/common/e.js"></script>
+		<script src="js/common/imgLoad.js"></script>
+		<script src="js/role/sky.js"></script>
+		<script src="js/role/land.js"></script>
+		<script src="js/role/timer.js"></script>
+		<script src="js/role/bird.js"></script>
+		<script src="js/role/pipe.js"></script>
+		<script>
+			/**
+			 * 步骤：
+			 * 1、通过imgLoad方法加载背景图
+			 * 2、当背景图加载完毕后，会执行传入的回调
+			 * 3、在回调中能给获取到加载好的背景图
+			 * 4、那么创建绘图环境对象的代码就在回调中，画布大小就使用背景图的大小
+			 * 5、创建背景实例
+			 * 6、开启一个定时器，清除画布，不断调用背景实例的draw方法绘制最新效果
+			 * */
+			
+			// 先加载图片，加载完毕后，开始游戏
+			imgLoad({
+				sky: 'img/sky.png',
+				land: 'img/land.png',
+				bird: 'img/birds.png',
+				pipeDown: 'img/pipeDown.png',
+				pipeUp: 'img/pipeUp.png'
+			}, function(imgObj) {
+				flappyBird(imgObj);
+			});
+			
+			
+			// 根据画布宽和角色宽，求无缝滚动需要多少个角色才能完成
+			function getRoleNumber(cvsWidth, roleWidth) {
+				return Math.ceil(cvsWidth / roleWidth) + 1;
+			}
+			
+			// 开始小鸟游戏
+			function flappyBird(imgObj) {
+				var ctx = util.getCtx('body', imgObj.sky.width, imgObj.sky.height);
+				
+				// 用来存储游戏中所需的所有角色实例
+				var roles = {
+					skyArr: [],
+					pipeArr: [],
+					landArr: [],
+					timerArr: [],
+					birdArr: []
+				}; 
+				
+				// 创建背景实例
+				var skyLen = getRoleNumber(ctx.canvas.width, imgObj.sky.width);
+				for(var i = 0; i < skyLen; i++) {
+					roles.skyArr.push(new Sky({
+						ctx: ctx,
+						img: imgObj.sky,
+						x: imgObj.sky.width * i
+					}));
+				}
+				
+				// 创建管道实例
+				var pipeLen = getRoleNumber(ctx.canvas.width, imgObj.pipeDown.width + 150);
+				for(var i = 0; i < pipeLen; i++) {
+					roles.pipeArr.push(new Pipe({
+						ctx: ctx,
+						imgPipeDown: imgObj.pipeDown,
+						imgPipeUp: imgObj.pipeUp,
+						leftRightSpace: 150,
+						topBottomSpace: 150,
+						maxHeight: 300,
+						x: 200 + (imgObj.pipeDown.width + 150) * i
+					}));
+				}
+				
+				// 创建大地实例
+				var landLen = getRoleNumber(ctx.canvas.width, imgObj.land.width);
+				for(var i = 0; i < landLen; i++) {
+					roles.landArr.push(new Land({
+						ctx: ctx,
+						img: imgObj.land,
+						x: imgObj.land.width * i,
+						y: ctx.canvas.height - imgObj.land.height
+					}));
+				}
+				
+				// 创建计时器
+				roles.timerArr.push(new Timer({ ctx: ctx }));
+				
+				// 创建鸟
+				roles.birdArr.push(new Bird({
+					ctx: ctx,
+					img: imgObj.bird,
+					widthFrame: 3,
+					heightFrame: 1
+				}));
+				
+				// 判断小鸟是否死亡
+				function birdIsDie() {
+					var bird = roles.birdArr[0];
+					
+					// 飞出天空，撞向大地，或者撞管道都死
+					if(bird.y < -bird.h || bird.y > (ctx.canvas.height - imgObj.land.height - bird.h + 20)) {
+						return true;
+					}
+					
+					else if(ctx.isPointInPath((bird.x + bird.w / 2), (bird.y + bird.h / 2))) {
+						return true;
+					}
+					
+					return false;
+				}
+				
+				// 绘制游戏画面
+				(function loop() {
+					requestAnimationFrame(function() {
+						
+						// 清除之前的游戏画面，然后绘制新的
+						ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+						ctx.beginPath();
+						
+						// 对上面的代码进行优化，减少冗余代码
+						for(var key in roles) {
+							roles[key].forEach(function(role, i) {
+								role.draw();
+							});
+						}
+	
+						// 小鸟没死，游戏继续
+						if(!birdIsDie()) {
+							loop();
+						}
+						
+					});
+				})();
+				
+				// 监听画布点击事件，点击时让小鸟上飞
+				ctx.canvas.addEventListener('click', function() {
+					roles.birdArr[0].flappyUp();
+					console.log(123);
+				});
+			}
+
+		</script>
+	</body>
+</html>
